@@ -1,3 +1,9 @@
+# Reason
+.bsb.lock
+.merlin
+lib/
+main.exe
+
 # Logs
 logs
 *.log
