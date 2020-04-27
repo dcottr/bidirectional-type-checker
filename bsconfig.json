@@ -1,0 +1,10 @@
+{
+  "name": "bidirectional-type-checker",
+  "sources": "src",
+  "bs-dependencies": [],
+  "entries": [{
+    "backend": "native",
+    "main-module": "Main"
+  }],
+  "refmt": 3
+}
