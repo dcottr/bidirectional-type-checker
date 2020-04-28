@@ -9,7 +9,8 @@ type t =
   | Function({
       funcIn: t,
       funcOut: t,
-    });
+    })
+  | List(t);
 
 /// AST types
 
@@ -18,6 +19,8 @@ type boolean =
   | False;
 
 type ast =
+  | Boolean(boolean)
+  | EmptyList
   | Variable(string)
   | Application({
       func: ast,
@@ -27,13 +30,13 @@ type ast =
       x: string,
       body: ast,
     })
-  | Boolean(boolean)
   | ConditionalExpression({
       if_expr: ast,
       then_expr: ast,
       else_expr: ast,
     })
-  | Annotation(ast, t);
+  | Annotation(ast, t)
+  | Cons({head: ast, rest: ast});
 
 let true_expr = Boolean(True);
 
@@ -52,12 +55,15 @@ let not =
   );
 
 let program = Application({func: not, arg: Boolean(True)});
+let list_ex = Cons({head: Boolean(True), rest: Cons({head: Boolean(True), rest: Cons({head: Boolean(False), rest: EmptyList})})});
+let list_of_lists = Cons({head: Annotation(EmptyList, List(Bool)), rest: Cons({head: EmptyList, rest: Cons({head: EmptyList, rest: EmptyList})})});
 
 let rec type_to_string = type_ =>
   switch (type_) {
   | Bool => "Bool"
   | Function({funcIn, funcOut}) =>
     "(" ++ type_to_string(funcIn) ++ "-->" ++ type_to_string(funcOut) ++ ")"
+  | List(type_) => "[" ++ type_to_string(type_) ++ "]"
   };
 
 let rec ast_to_string = root =>
@@ -78,6 +84,8 @@ let rec ast_to_string = root =>
     ast_to_string(func) ++ " " ++ ast_to_string(arg)
   | Annotation(expr, type_) =>
     ast_to_string(expr) ++ " : " ++ type_to_string(type_)
+  | EmptyList => "[]"
+  | Cons({head, rest}) => ast_to_string(head) ++ "::" ++ ast_to_string(rest)
   };
 
 print_endline(ast_to_string(program));
@@ -94,6 +102,18 @@ let rec check_type = (expr, context, expectedType) =>
         "Expected a function but got "
         ++ type_to_string(type_),
       )
+    }
+  | Cons({head, rest}) =>
+    switch(expectedType) {
+      | List(type_) =>
+        check_type(head, context, type_);
+        check_type(rest, context, expectedType)
+      | _ => failwith("Can't prepend " ++ ast_to_string(head) ++ " to a non-list: " ++ ast_to_string(rest))
+    }
+  | EmptyList =>
+    switch(expectedType) {
+      | List(_) => ()
+      | _ => failwith("Expected type " ++ type_to_string(expectedType) ++ " but got " ++ type_to_string(expectedType))
     }
   | _ =>
     let synth_type = synthesize_type(expr, context);
@@ -141,6 +161,17 @@ and synthesize_type = (expr, context) =>
       );
     };
   | Abstraction(_) => failwith("Couldn't determine the type of lambda.")
+  | Cons({head, rest}) =>
+    let type_ = synthesize_type(head, context);
+    check_type(rest, context, List(type_));
+    List(type_)
+  | EmptyList => failwith("Couldn't determine the type of empty list.")
   };
 
 print_endline(type_to_string(synthesize_type(not, StringMap.empty)))
+
+print_endline(ast_to_string(list_ex))
+print_endline(type_to_string(synthesize_type(list_ex, StringMap.empty)))
+
+print_endline(ast_to_string(list_of_lists))
+print_endline(type_to_string(synthesize_type(list_of_lists, StringMap.empty)))
